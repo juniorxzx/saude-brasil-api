@@ -16,8 +16,9 @@ export class UserService {
 
   constructor(private prisma: PrismaService) {}
 
-  private handleError(error: any, context: string) {
-    this.logger.error(`Erro em ${context}:`, error.stack || error);
+  private handleError(error: unknown, context: string) {
+    const stack = error instanceof Error ? error.stack : undefined;
+    this.logger.error(`Erro em ${context}:`, stack || error);
     if (error instanceof HttpException) {
       throw error;
     }
@@ -28,7 +29,31 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto) {
     try {
-      const { email, password, name, role, phone, CPF, avatar } = createUserDto;
+      const {
+        email,
+        password,
+        name,
+        role,
+        phone,
+        CPF,
+        avatar,
+        CNPJ,
+        CRM,
+        COREN,
+      } = createUserDto;
+
+      // Validação de campos profissionais baseado no role
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (role === 'CLINIC_MANAGER' && !CNPJ) {
+        throw new ConflictException(
+          'CNPJ é obrigatório para gerentes de clínica',
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (role === 'DOCTOR' && !CRM) {
+        throw new ConflictException('CRM é obrigatório para médicos');
+      }
 
       const existingUser = await this.prisma.user.findUnique({
         where: { email },
@@ -52,6 +77,42 @@ export class UserService {
         }
       }
 
+      if (CNPJ) {
+        const existingCNPJ = await this.prisma.user.findUnique({
+          where: { CNPJ },
+        });
+
+        if (existingCNPJ) {
+          throw new ConflictException(
+            `Não foi possível criar o usuário. O CNPJ '${CNPJ}' já está cadastrado.`,
+          );
+        }
+      }
+
+      if (CRM) {
+        const existingCRM = await this.prisma.user.findUnique({
+          where: { CRM },
+        });
+
+        if (existingCRM) {
+          throw new ConflictException(
+            `Não foi possível criar o usuário. O CRM '${CRM}' já está cadastrado.`,
+          );
+        }
+      }
+
+      if (COREN) {
+        const existingCOREN = await this.prisma.user.findUnique({
+          where: { COREN },
+        });
+
+        if (existingCOREN) {
+          throw new ConflictException(
+            `Não foi possível criar o usuário. O COREN '${COREN}' já está cadastrado.`,
+          );
+        }
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const user = await this.prisma.user.create({
@@ -62,6 +123,9 @@ export class UserService {
           role: role || 'PATIENT',
           phone,
           CPF,
+          CNPJ,
+          CRM,
+          COREN,
           avatar,
         },
         select: {
@@ -72,6 +136,9 @@ export class UserService {
           status: true,
           phone: true,
           CPF: true,
+          CNPJ: true,
+          CRM: true,
+          COREN: true,
           avatar: true,
           createdAt: true,
         },
@@ -200,7 +267,9 @@ export class UserService {
         );
       }
 
-      const data: any = { ...updateUserDto };
+      const data: Record<string, string | undefined> = {
+        ...updateUserDto,
+      } as Record<string, string | undefined>;
 
       if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
         const emailInUse = await this.prisma.user.findUnique({
