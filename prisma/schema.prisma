@@ -26,6 +26,19 @@ enum UserStatus {
   PENDING_VERIFICATION
 }
 
+enum RecordType {
+  CONSULTATION
+  EXAM
+  PRESCRIPTION
+  DIAGNOSIS
+}
+
+enum AttachmentType {
+  PDF
+  IMAGE
+  DOCUMENT
+}
+
 // User Model
 model User {
   id            String     @id @default(cuid())
@@ -43,7 +56,9 @@ model User {
   refreshToken  String?
   emailVerified Boolean    @default(false)
 
-  patientProfile PatientProfile?
+  patientProfile   PatientProfile?
+  recordsAsPatient MedicalRecord[] @relation("PatientRecords")
+  recordsAsDoctor  MedicalRecord[] @relation("DoctorRecords")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -64,4 +79,39 @@ model PatientProfile {
   updatedAt         DateTime @updatedAt
 
   @@map("patient_profiles")
+}
+
+model MedicalRecord {
+  id           String              @id @default(cuid())
+  pacienteId   String
+  paciente     User                @relation("PatientRecords", fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctorId     String
+  doctor       User                @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: Cascade)
+  type         RecordType          @default(CONSULTATION)
+  title        String // Ex: "Consulta de rotina", "Tomografia do tórax"
+  description  String // Descrição detalhada
+  observations String? // Observações adicionais do médico
+  attachments  MedicalAttachment[]
+  recordDate   DateTime            @default(now()) // Data do exame/consulta
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([pacienteId])
+  @@index([doctorId])
+  @@map("medical_records")
+}
+
+model MedicalAttachment {
+  id         String         @id @default(cuid())
+  recordId   String
+  record     MedicalRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  fileName   String // Nome original do arquivo
+  fileSize   Int // Tamanho em bytes
+  filePath   String // Caminho relativo no servidor
+  fileType   AttachmentType
+  mimeType   String // "application/pdf", "image/png", etc
+  uploadedAt DateTime       @default(now())
+
+  @@index([recordId])
+  @@map("medical_attachments")
 }
