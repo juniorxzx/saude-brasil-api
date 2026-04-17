@@ -15,7 +15,7 @@ export class CreateMedicalRecordDto {
   })
   @IsString()
   @IsNotEmpty()
-  pacienteId: string;
+  pacienteId!: string;
 
   @ApiProperty({
     description: 'Tipo de registro médico',
@@ -24,7 +24,7 @@ export class CreateMedicalRecordDto {
   })
   @IsEnum(RecordType)
   @IsNotEmpty()
-  type: RecordType;
+  type!: RecordType;
 
   @ApiProperty({
     description: 'Título do registro (ex: Consulta de rotina)',
@@ -32,7 +32,7 @@ export class CreateMedicalRecordDto {
   })
   @IsString()
   @IsNotEmpty()
-  title: string;
+  title!: string;
 
   @ApiProperty({
     description: 'Descrição detalhada do atendimento ou exame',
@@ -40,7 +40,7 @@ export class CreateMedicalRecordDto {
   })
   @IsString()
   @IsNotEmpty()
-  description: string;
+  description!: string;
 
   @ApiProperty({
     description: 'Observações adicionais do médico',
@@ -57,5 +57,5 @@ export class CreateMedicalRecordDto {
   })
   @IsDateString()
   @IsNotEmpty()
-  recordDate: string;
+  recordDate!: string;
 }
