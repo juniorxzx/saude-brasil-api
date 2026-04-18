@@ -18,6 +18,8 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { MedicalRecordsService } from './medical-records.service';
@@ -26,11 +28,12 @@ import { CreateMedicalRecordDto, UpdateMedicalRecordDto } from './dto';
 @ApiTags('medical-records')
 @ApiBearerAuth()
 @Controller('medical-records')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class MedicalRecordsController {
   constructor(private readonly medicalRecordsService: MedicalRecordsService) {}
 
   @Post()
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Criar novo registro médico',
     description:
@@ -75,6 +78,7 @@ export class MedicalRecordsController {
   }
 
   @Get()
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Listar registros médicos',
     description:
@@ -114,6 +118,7 @@ export class MedicalRecordsController {
   }
 
   @Get(':id')
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Obter detalhes de um registro médico',
   })
@@ -134,6 +139,7 @@ export class MedicalRecordsController {
   }
 
   @Patch(':id')
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Atualizar registro médico',
     description: 'Apenas o médico que criou o registro pode atualizá-lo.',
@@ -163,6 +169,7 @@ export class MedicalRecordsController {
   }
 
   @Delete(':id')
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Deletar registro médico',
     description: 'Apenas o médico que criou o registro pode deletá-lo.',
@@ -184,6 +191,7 @@ export class MedicalRecordsController {
   }
 
   @Post(':id/attachments')
+  @Roles('DOCTOR')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
     summary: 'Fazer upload de anexo de registro médico',
@@ -230,6 +238,7 @@ export class MedicalRecordsController {
   }
 
   @Delete('attachments/:attachmentId')
+  @Roles('DOCTOR')
   @ApiOperation({
     summary: 'Remover anexo de registro médico',
   })

@@ -59,6 +59,7 @@ model User {
   patientProfile   PatientProfile?
   recordsAsPatient MedicalRecord[] @relation("PatientRecords")
   recordsAsDoctor  MedicalRecord[] @relation("DoctorRecords")
+  auditLogs        AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,4 +115,39 @@ model MedicalAttachment {
 
   @@index([recordId])
   @@map("medical_attachments")
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  REGISTER
+  USER_READ
+  USER_CREATE
+  USER_UPDATE
+  USER_DELETE
+  PROFILE_READ
+  PROFILE_UPDATE
+  RECORD_READ
+  RECORD_CREATE
+  RECORD_UPDATE
+  RECORD_DELETE
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      AuditAction
+  resource    String
+  resourceId  String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  timestamp   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
 }

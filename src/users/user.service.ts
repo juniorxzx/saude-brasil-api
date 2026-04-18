@@ -7,6 +7,7 @@ import {
   HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import * as bcrypt from 'bcrypt';
 
@@ -14,7 +15,10 @@ import * as bcrypt from 'bcrypt';
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   private handleError(error: unknown, context: string) {
     const stack = error instanceof Error ? error.stack : undefined;
@@ -204,6 +208,8 @@ export class UserService {
         );
       }
 
+      await this.auditService.logUserRead(id, id);
+
       return user;
     } catch (error) {
       this.handleError(error, 'buscar usuário por ID');
@@ -267,6 +273,26 @@ export class UserService {
         );
       }
 
+      // Validar transição de status: PENDING_VERIFICATION -> ACTIVE
+      if (updateUserDto.status) {
+        const validTransitions: Record<string, string[]> = {
+          PENDING_VERIFICATION: ['ACTIVE'],
+          ACTIVE: ['SUSPENDED', 'INACTIVE'],
+          SUSPENDED: ['ACTIVE', 'INACTIVE'],
+          INACTIVE: ['ACTIVE'],
+        };
+
+        const currentStatus = existingUser.status;
+        const newStatus = updateUserDto.status;
+
+        const allowedStatuses = validTransitions[currentStatus] || [];
+        if (!allowedStatuses.includes(newStatus)) {
+          throw new ConflictException(
+            `Transição de status inválida: ${currentStatus} -> ${newStatus}. Transições permitidas: ${allowedStatuses.join(', ') || 'nenhuma'}`,
+          );
+        }
+      }
+
       const data: Record<string, string | undefined> = {
         ...updateUserDto,
       } as Record<string, string | undefined>;
@@ -316,6 +342,8 @@ export class UserService {
           updatedAt: true,
         },
       });
+
+      await this.auditService.logUserUpdate(id, id);
 
       return updatedUser;
     } catch (error) {

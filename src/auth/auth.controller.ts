@@ -84,7 +84,6 @@ export class AuthController {
     description: 'Não autenticado.',
   })
   async getCurrentUser(@GetUser() user: any): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return this.authService.getCurrentUser(user.userId);
   }
 
@@ -102,7 +101,6 @@ export class AuthController {
     description: 'Não autenticado.',
   })
   async logout(@GetUser() user: any): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return this.authService.logout(user.userId);
   }
 }

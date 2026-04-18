@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   UnauthorizedException,
@@ -12,6 +11,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RefreshDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from '../users/dto';
+import { SECURITY_CONFIG } from '../config/security.constants';
+import { AuditService } from '../audit/audit.service';
+import { UserRole } from '@prisma/client';
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: UserRole;
+}
 
 @Injectable()
 export class AuthService {
@@ -20,6 +28,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private auditService: AuditService,
   ) {}
 
   private handleError(error: unknown, context: string) {
@@ -33,10 +42,24 @@ export class AuthService {
     );
   }
 
+  private getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+    return secret;
+  }
+
+  private getJwtRefreshSecret(): string {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) {
+      throw new Error('JWT_REFRESH_SECRET environment variable is required');
+    }
+    return secret;
+  }
+
   async register(createUserDto: CreateUserDto) {
     try {
-      // Reutiliza a lógica de criação de usuário do UserService
-      // Aqui fazemos o registro básico
       const {
         email,
         password,
@@ -50,16 +73,14 @@ export class AuthService {
         COREN,
       } = createUserDto;
 
-      // Validação de campos profissionais baseado no role
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      if (role === 'CLINIC_MANAGER' && !CNPJ) {
+      if (role && role === 'CLINIC_MANAGER' && !CNPJ) {
         throw new ConflictException(
           'CNPJ é obrigatório para gerentes de clínica',
         );
       }
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      if (role === 'DOCTOR' && !CRM) {
+      if (role && role === 'DOCTOR' && !CRM) {
         throw new ConflictException('CRM é obrigatório para médicos');
       }
 
@@ -121,7 +142,10 @@ export class AuthService {
         }
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(
+        password,
+        SECURITY_CONFIG.PASSWORD.SALT_ROUNDS,
+      );
 
       const user = await this.prisma.user.create({
         data: {
@@ -179,28 +203,26 @@ export class AuthService {
         throw new UnauthorizedException('Email ou senha inválidos');
       }
 
-      const payload = {
+      const payload: JwtPayload = {
         sub: user.id,
         email: user.email,
         role: user.role,
       };
 
       const accessToken = this.jwtService.sign(payload, {
-        expiresIn: '15m',
-        secret: process.env.JWT_SECRET || 'sua-chave-secreta-aqui',
+        expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+        secret: this.getJwtSecret(),
       });
 
       const refreshToken = this.jwtService.sign(payload, {
-        expiresIn: '7d',
-        secret: process.env.JWT_REFRESH_SECRET || 'sua-chave-refresh-aqui',
+        expiresIn: SECURITY_CONFIG.JWT.REFRESH_TOKEN_EXPIRY,
+        secret: this.getJwtRefreshSecret(),
       });
 
-      // Salvar refresh token no banco
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const updateResult = await this.prisma.user.update({
+      await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          refreshToken: refreshToken as unknown as string | null,
+          refreshToken,
         },
       });
 
@@ -224,12 +246,11 @@ export class AuthService {
     try {
       const { refreshToken } = refreshDto;
 
-      const payload: any = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'sua-chave-refresh-aqui',
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+        secret: this.getJwtRefreshSecret(),
       });
 
       const user = await this.prisma.user.findUnique({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         where: { id: payload.sub },
       });
 
@@ -237,15 +258,15 @@ export class AuthService {
         throw new UnauthorizedException('Refresh token inválido ou expirado');
       }
 
-      const newPayload = {
+      const newPayload: JwtPayload = {
         sub: user.id,
         email: user.email,
         role: user.role,
       };
 
       const newAccessToken = this.jwtService.sign(newPayload, {
-        expiresIn: '15m',
-        secret: process.env.JWT_SECRET || 'sua-chave-secreta-aqui',
+        expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+        secret: this.getJwtSecret(),
       });
 
       return {
@@ -288,11 +309,10 @@ export class AuthService {
 
   async logout(userId: string) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const updateResult = await this.prisma.user.update({
+      await this.prisma.user.update({
         where: { id: userId },
         data: {
-          refreshToken: null as unknown as string | null,
+          refreshToken: null,
         },
       });
 

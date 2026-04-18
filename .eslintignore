@@ -1,0 +1,32 @@
+# Dependencies
+
+node_modules/
+
+# Build outputs
+
+dist/
+build/
+
+# Coverage
+
+coverage/
+.nyc_output/
+
+# Generated files
+
+/generated/
+\*.generated.ts
+
+# Config files (usually don't need linting)
+
+prisma.config.ts
+nest-cli.json
+
+# Third-party or vendored code
+
+vendor/
+
+# Temporary
+
+.temp/
+.tmp/

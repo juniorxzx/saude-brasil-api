@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Lock files (usually auto-generated)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Compiled files
+*.js
+*.min.js
+
+# Generated files
+/generated/
+
+# Config files (some don't need formatting)
+prisma/migrations/
+
+# Logs
+logs/
+*.log
+
+# Temporary
+.temp/
+.tmp/
+
+# Environment
+.env*
+
+# IDE
+.vscode/
+.idea/

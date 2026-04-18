@@ -6,10 +6,12 @@ import * as fs from 'fs';
 import { MedicalRecordsService } from './medical-records.service';
 import { MedicalRecordsController } from './medical-records.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AuditModule,
 
     MulterModule.register({
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment

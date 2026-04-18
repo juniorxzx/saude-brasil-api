@@ -5,11 +5,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { EncryptionService } from '../common/services/encryption.service';
 import { CreateMedicalRecordDto, UpdateMedicalRecordDto } from './dto';
 
 @Injectable()
 export class MedicalRecordsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+    private encryptionService: EncryptionService,
+  ) {}
 
   async create(
     createMedicalRecordDto: CreateMedicalRecordDto,
@@ -47,6 +53,11 @@ export class MedicalRecordsService {
       throw new NotFoundException('Médico/Clínica não encontrado(a)');
     }
 
+    // Criptografar descrição
+    const encryptedDescription = description
+      ? this.encryptionService.encrypt(description)
+      : null;
+
     // Criar registro
     const medicalRecord = await this.prisma.medicalRecord.create({
       data: {
@@ -54,7 +65,7 @@ export class MedicalRecordsService {
         doctorId,
         type,
         title,
-        description,
+        description: encryptedDescription,
         observations,
         recordDate: new Date(recordDate),
       },
@@ -63,13 +74,17 @@ export class MedicalRecordsService {
       },
     });
 
+    await this.auditService.logRecordCreate(doctorId, medicalRecord.id);
+
     return medicalRecord;
   }
 
   async findAll(userId: string, userRole: string) {
+    let records: any;
+
     // Pacientes veem seus próprios registros
     if (userRole === 'PATIENT') {
-      return this.prisma.medicalRecord.findMany({
+      records = await this.prisma.medicalRecord.findMany({
         where: {
           pacienteId: userId,
         },
@@ -86,11 +101,9 @@ export class MedicalRecordsService {
         },
         orderBy: { recordDate: 'desc' },
       });
-    }
-
-    // Médicos/Clínicas veem registros que criaram
-    if (userRole === 'DOCTOR' || userRole === 'CLINIC_MANAGER') {
-      return this.prisma.medicalRecord.findMany({
+    } else if (userRole === 'DOCTOR' || userRole === 'CLINIC_MANAGER') {
+      // Médicos/Clínicas veem registros que criaram
+      records = await this.prisma.medicalRecord.findMany({
         where: {
           doctorId: userId,
         },
@@ -106,11 +119,13 @@ export class MedicalRecordsService {
         },
         orderBy: { recordDate: 'desc' },
       });
+    } else {
+      throw new ForbiddenException(
+        'Você não tem permissão para visualizar registros médicos',
+      );
     }
 
-    throw new ForbiddenException(
-      'Você não tem permissão para visualizar registros médicos',
-    );
+    return records.map((record) => this.decryptRecordDescription(record));
   }
 
   async findOne(recordId: string, userId: string, userRole: string) {
@@ -156,7 +171,9 @@ export class MedicalRecordsService {
       );
     }
 
-    return record;
+    await this.auditService.logRecordRead(userId, record.id);
+
+    return this.decryptRecordDescription(record) as any;
   }
 
   async update(
@@ -179,20 +196,30 @@ export class MedicalRecordsService {
       );
     }
 
+    // Criptografar descrição se fornecida
+    const updateData: Partial<UpdateMedicalRecordDto> & { recordDate?: Date } =
+      { ...updateMedicalRecordDto };
+    if (updateData.description) {
+      updateData.description = this.encryptionService.encrypt(
+        updateData.description,
+      );
+    }
+    if (updateData.recordDate) {
+      updateData.recordDate = new Date(updateData.recordDate as string | Date);
+    }
+
     const updated = await this.prisma.medicalRecord.update({
       where: { id: recordId },
-      data: {
-        ...updateMedicalRecordDto,
-        recordDate: updateMedicalRecordDto.recordDate
-          ? new Date(updateMedicalRecordDto.recordDate)
-          : undefined,
-      },
+      data: updateData,
       include: {
         attachments: true,
       },
     });
 
-    return updated;
+    await this.auditService.logRecordUpdate(userId, recordId);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return updated as any;
   }
 
   async remove(recordId: string, userId: string) {
@@ -214,6 +241,13 @@ export class MedicalRecordsService {
     // Cascade delete vai remover attachments automaticamente
     await this.prisma.medicalRecord.delete({
       where: { id: recordId },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'RECORD_DELETE',
+      resource: 'medical_records',
+      resourceId: recordId,
     });
 
     return { message: 'Registro médico deletado com sucesso' };
@@ -283,7 +317,7 @@ export class MedicalRecordsService {
   }
 
   async getRecordsByPatient(pacienteId: string, doctorId: string) {
-    return this.prisma.medicalRecord.findMany({
+    const records = await this.prisma.medicalRecord.findMany({
       where: {
         pacienteId,
         doctorId,
@@ -293,5 +327,19 @@ export class MedicalRecordsService {
       },
       orderBy: { recordDate: 'desc' },
     });
+
+    return records.map((record) => this.decryptRecordDescription(record));
+  }
+
+  private decryptRecordDescription<T extends { description?: string | null }>(
+    record: T,
+  ): T {
+    if (record.description) {
+      return {
+        ...record,
+        description: this.encryptionService.decrypt(record.description),
+      };
+    }
+    return record;
   }
 }

@@ -6,13 +6,19 @@ import {
   HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { EncryptionService } from '../common/services/encryption.service';
 import { CreatePatientProfileDto, UpdatePatientProfileDto } from './dto';
 
 @Injectable()
 export class PatientProfileService {
   private readonly logger = new Logger(PatientProfileService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+    private encryptionService: EncryptionService,
+  ) {}
 
   private handleError(error: unknown, context: string) {
     const stack = error instanceof Error ? error.stack : undefined;
@@ -38,14 +44,18 @@ export class PatientProfileService {
         return this.update(userId, createPatientProfileDto);
       }
 
+      const encryptedData = this.encryptSensitiveFields(
+        createPatientProfileDto,
+      );
+
       const patientProfile = await this.prisma.patientProfile.create({
         data: {
           userId,
-          ...createPatientProfileDto,
+          ...encryptedData,
         },
       });
 
-      return patientProfile;
+      return this.decryptSensitiveFields(patientProfile);
     } catch (error) {
       this.handleError(error, 'criar perfil do paciente');
     }
@@ -75,7 +85,9 @@ export class PatientProfileService {
         );
       }
 
-      return patientProfile;
+      await this.auditService.logProfileRead(userId);
+
+      return this.decryptSensitiveFields(patientProfile);
     } catch (error) {
       this.handleError(error, 'buscar perfil do paciente');
     }
@@ -96,12 +108,18 @@ export class PatientProfileService {
         );
       }
 
+      const encryptedData = this.encryptSensitiveFields(
+        updatePatientProfileDto,
+      );
+
       const updatedProfile = await this.prisma.patientProfile.update({
         where: { userId },
-        data: updatePatientProfileDto,
+        data: encryptedData,
       });
 
-      return updatedProfile;
+      await this.auditService.logProfileUpdate(userId);
+
+      return this.decryptSensitiveFields(updatedProfile);
     } catch (error) {
       this.handleError(error, 'atualizar perfil do paciente');
     }
@@ -127,5 +145,69 @@ export class PatientProfileService {
     } catch (error) {
       this.handleError(error, 'remover perfil do paciente');
     }
+  }
+
+  private encryptSensitiveFields<
+    T extends {
+      allergies?: string[];
+      medications?: string[];
+      medicalConditions?: string[];
+    },
+  >(data: T): T {
+    const encrypted = { ...data };
+    if (data.allergies?.length) {
+      encrypted.allergies = [
+        this.encryptionService.encrypt(data.allergies.join('|')),
+      ];
+    }
+    if (data.medications?.length) {
+      encrypted.medications = [
+        this.encryptionService.encrypt(data.medications.join('|')),
+      ];
+    }
+    if (data.medicalConditions?.length) {
+      encrypted.medicalConditions = [
+        this.encryptionService.encrypt(data.medicalConditions.join('|')),
+      ];
+    }
+    return encrypted;
+  }
+
+  private decryptSensitiveFields<
+    T extends {
+      allergies?: string[];
+      medications?: string[];
+      medicalConditions?: string[];
+    },
+  >(data: T): T {
+    const decrypted = { ...data };
+    if (data.allergies?.length && data.allergies[0]) {
+      try {
+        decrypted.allergies = this.encryptionService
+          .decrypt(data.allergies[0])
+          .split('|');
+      } catch {
+        decrypted.allergies = data.allergies;
+      }
+    }
+    if (data.medications?.length && data.medications[0]) {
+      try {
+        decrypted.medications = this.encryptionService
+          .decrypt(data.medications[0])
+          .split('|');
+      } catch {
+        decrypted.medications = data.medications;
+      }
+    }
+    if (data.medicalConditions?.length && data.medicalConditions[0]) {
+      try {
+        decrypted.medicalConditions = this.encryptionService
+          .decrypt(data.medicalConditions[0])
+          .split('|');
+      } catch {
+        decrypted.medicalConditions = data.medicalConditions;
+      }
+    }
+    return decrypted;
   }
 }

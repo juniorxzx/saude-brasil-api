@@ -52,7 +52,31 @@ pids
 *.seed
 *.pid.lock
 
+# User-generated files
+/uploads
+uploads/
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+
+# Yarn
+.yarn/
+.yarnrc.yml
+
+# Editor temp files
+*.swp
+*.swo
+*~
+
+# macOS
+.AppleDouble
+.LSOverride
+.idea/
+
+
+.specify
+.claude
+
+specs
