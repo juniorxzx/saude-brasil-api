@@ -78,6 +78,15 @@ export class CreateUserDto {
   CRM?: string;
 
   @ApiPropertyOptional({
+    enum: ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'INACTIVE'],
+    description: 'Status do usuário no sistema',
+    default: 'PENDING_VERIFICATION',
+  })
+  @IsOptional()
+  @IsEnum(['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'INACTIVE'])
+  status?: string;
+
+  @ApiPropertyOptional({
     description: 'COREN do enfermeiro/técnico (obrigatório se aplicável)',
     example: '123456/SP',
   })

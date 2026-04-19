@@ -1,7 +1,16 @@
 <!-- SPECKIT START -->
 
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
+shell commands, and other important information, read the relevant plan:
+
+**Current Feature**: Validação e Documentação de Autenticação de Endpoints
+
+- Spec: specs/003-authentication-validation/spec.md
+- Plan: specs/003-authentication-validation/IMPL_PLAN.md
+- Research: specs/003-authentication-validation/research.md
+- Contracts: specs/003-authentication-validation/contracts/api.md
+
+**Previous Feature** (Healthcare Backend Standards - Completed):
 specs/001-healthcare-backend-standards/IMPL_PLAN.md
 
 <!-- SPECKIT END -->

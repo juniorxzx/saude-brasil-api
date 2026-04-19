@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   Logger,
   HttpException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -185,7 +186,7 @@ export class UserService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string, userRole: string) {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id },
@@ -208,7 +209,14 @@ export class UserService {
         );
       }
 
-      await this.auditService.logUserRead(id, id);
+      // Owner check: usuário pode ver apenas sua própria informação, ou ADMIN pode ver qualquer um
+      if (id !== userId && userRole !== 'ADMIN') {
+        throw new ForbiddenException(
+          'Você só pode visualizar suas próprias informações',
+        );
+      }
+
+      await this.auditService.logUserRead(userId, id);
 
       return user;
     } catch (error) {
@@ -261,7 +269,12 @@ export class UserService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    userId: string,
+    userRole: string,
+  ) {
     try {
       const existingUser = await this.prisma.user.findUnique({
         where: { id },
@@ -270,6 +283,13 @@ export class UserService {
       if (!existingUser) {
         throw new NotFoundException(
           `Usuário não pôde ser atualizado pois não existe. (ID: ${id})`,
+        );
+      }
+
+      // Owner check: apenas ADMIN pode atualizar outros usuários
+      if (id !== userId && userRole !== 'ADMIN') {
+        throw new ForbiddenException(
+          'Você só pode atualizar suas próprias informações',
         );
       }
 
@@ -351,7 +371,7 @@ export class UserService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string, userRole: string) {
     try {
       const existingUser = await this.prisma.user.findUnique({
         where: { id },
@@ -360,6 +380,13 @@ export class UserService {
       if (!existingUser) {
         throw new NotFoundException(
           `Usuário não pôde ser deletado pois não foi encontrado no banco (ID: ${id})`,
+        );
+      }
+
+      // Owner check: apenas ADMIN pode deletar usuários
+      if (userRole !== 'ADMIN') {
+        throw new ForbiddenException(
+          'Apenas administradores podem deletar usuários',
         );
       }
 

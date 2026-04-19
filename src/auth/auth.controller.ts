@@ -74,6 +74,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obter dados do usuário autenticado' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -84,7 +85,7 @@ export class AuthController {
     description: 'Não autenticado.',
   })
   async getCurrentUser(@GetUser() user: any): Promise<any> {
-    return this.authService.getCurrentUser(user.userId);
+    return this.authService.getCurrentUser(user.id);
   }
 
   @Post('logout')
@@ -101,6 +102,6 @@ export class AuthController {
     description: 'Não autenticado.',
   })
   async logout(@GetUser() user: any): Promise<any> {
-    return this.authService.logout(user.userId);
+    return this.authService.logout(user.id);
   }
 }

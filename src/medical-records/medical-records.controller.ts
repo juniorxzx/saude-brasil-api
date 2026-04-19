@@ -78,7 +78,7 @@ export class MedicalRecordsController {
   }
 
   @Get()
-  @Roles('DOCTOR')
+  @Roles('DOCTOR', 'PATIENT', 'CLINIC_MANAGER', 'ADMIN')
   @ApiOperation({
     summary: 'Listar registros médicos',
     description:
@@ -118,7 +118,7 @@ export class MedicalRecordsController {
   }
 
   @Get(':id')
-  @Roles('DOCTOR')
+  @Roles('DOCTOR', 'PATIENT', 'CLINIC_MANAGER', 'ADMIN')
   @ApiOperation({
     summary: 'Obter detalhes de um registro médico',
   })

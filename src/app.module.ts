@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -11,6 +12,8 @@ import { MedicalRecordsModule } from './medical-records/medical-records.module';
 import { AuditModule } from './audit/audit.module';
 import { CommonModule } from './common/common.module';
 import { SECURITY_CONFIG } from './config/security.constants';
+import { AuthFailureInterceptor } from './auth/interceptors/auth-failure.interceptor';
+import { AuditService } from './audit/audit.service';
 
 @Module({
   imports: [
@@ -32,6 +35,12 @@ import { SECURITY_CONFIG } from './config/security.constants';
     MedicalRecordsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuthFailureInterceptor,
+    },
+  ],
 })
 export class AppModule {}

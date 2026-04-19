@@ -205,4 +205,48 @@ export class AuditService {
       local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : '***';
     return `${maskedLocal}@${domain}`;
   }
+
+  async logAuthMissingToken(
+    ipAddress?: string,
+    userAgent?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.log({
+      action: 'LOGIN_FAILED',
+      resource: 'auth',
+      ipAddress,
+      userAgent,
+      metadata: { reason: 'Missing token', ...metadata },
+    });
+  }
+
+  async logAuthInvalidToken(
+    ipAddress?: string,
+    userAgent?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.log({
+      action: 'LOGIN_FAILED',
+      resource: 'auth',
+      ipAddress,
+      userAgent,
+      metadata: { reason: 'Invalid token', ...metadata },
+    });
+  }
+
+  async logAuthInsufficientRole(
+    userId: string,
+    requiredRoles: string[],
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    await this.log({
+      userId,
+      action: 'LOGIN_FAILED',
+      resource: 'auth',
+      ipAddress,
+      userAgent,
+      metadata: { reason: 'Insufficient role', requiredRoles },
+    });
+  }
 }

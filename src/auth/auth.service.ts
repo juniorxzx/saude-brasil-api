@@ -176,6 +176,8 @@ export class AuthService {
         },
       });
 
+      await this.auditService.logRegister(user.id);
+
       return {
         message: 'Usuário registrado com sucesso',
         user,
@@ -225,6 +227,8 @@ export class AuthService {
           refreshToken,
         },
       });
+
+      await this.auditService.logLogin(user.id);
 
       return {
         accessToken,
@@ -315,6 +319,8 @@ export class AuthService {
           refreshToken: null,
         },
       });
+
+      await this.auditService.logLogout(userId);
 
       return { message: 'Logout realizado com sucesso' };
     } catch (error) {

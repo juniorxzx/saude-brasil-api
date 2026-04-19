@@ -9,6 +9,7 @@ import {
   HttpStatus,
   Req,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,10 +27,13 @@ interface AuthenticatedRequest extends Request {
 }
 import { PatientProfileService } from './patient-profile.service';
 import { CreatePatientProfileDto, UpdatePatientProfileDto } from './dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('Patient Profile')
 @ApiBearerAuth()
 @Controller('patient-profile')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class PatientProfileController {
   constructor(private readonly patientProfileService: PatientProfileService) {}
 

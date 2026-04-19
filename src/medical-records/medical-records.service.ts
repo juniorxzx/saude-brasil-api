@@ -65,7 +65,7 @@ export class MedicalRecordsService {
         doctorId,
         type,
         title,
-        description: encryptedDescription,
+        description: encryptedDescription || '',
         observations,
         recordDate: new Date(recordDate),
       },
@@ -197,8 +197,7 @@ export class MedicalRecordsService {
     }
 
     // Criptografar descrição se fornecida
-    const updateData: Partial<UpdateMedicalRecordDto> & { recordDate?: Date } =
-      { ...updateMedicalRecordDto };
+    const updateData: any = { ...updateMedicalRecordDto };
     if (updateData.description) {
       updateData.description = this.encryptionService.encrypt(
         updateData.description,

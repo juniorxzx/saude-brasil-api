@@ -54,7 +54,7 @@ export class AuditController {
       userId?: string;
       action?: AuditAction;
       resource?: string;
-      createdAt?: {
+      timestamp?: {
         gte?: Date;
         lte?: Date;
       };
@@ -67,14 +67,14 @@ export class AuditController {
     if (resource) where.resource = resource;
 
     if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
+      where.timestamp = {};
+      if (startDate) where.timestamp.gte = new Date(startDate);
+      if (endDate) where.timestamp.lte = new Date(endDate);
     }
 
     const logs = await this.prisma.auditLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: limit ? parseInt(limit, 10) : 50,
       skip: offset ? parseInt(offset, 10) : 0,
     });
