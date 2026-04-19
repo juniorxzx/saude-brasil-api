@@ -24,8 +24,9 @@ export class AuthFailureInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const ipAddress = request.ip || request.socket.remoteAddress;
-    const userAgent = request.get('user-agent');
+    const ipAddress =
+      (request as any).ip || (request as any).socket?.remoteAddress;
+    const userAgent = (request as any).get?.('user-agent');
 
     return next.handle().pipe(
       catchError((error) => {
@@ -33,8 +34,8 @@ export class AuthFailureInterceptor implements NestInterceptor {
         if (error instanceof UnauthorizedException) {
           // Token ausente ou inválido
           void this.auditService.logAuthMissingToken(ipAddress, userAgent, {
-            path: request.url,
-            method: request.method,
+            path: (request as any).url,
+            method: (request as any).method,
           });
         } else if (error instanceof ForbiddenException) {
           // Role insuficiente
